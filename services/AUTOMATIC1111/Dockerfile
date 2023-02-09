@@ -24,73 +24,70 @@ RUN . /clone.sh k-diffusion https://github.com/crowsonkb/k-diffusion.git 5b3af03
 RUN . /clone.sh clip-interrogator https://github.com/pharmapsychotic/clip-interrogator 2486589f24165c8e3b303f84e9dbbea318df83e8
 
 
-FROM alpine:3 as xformers
-RUN apk add aria2
-RUN aria2c -x 10 --dir / --out wheel.whl 'https://github.com/AbdBarho/stable-diffusion-webui-docker/releases/download/3.1.0/xformers-0.0.15.dev0+4e3631d.d20221125-cp310-cp310-linux_x86_64.whl'
+FROM alpine:3.17 as xformers
+RUN apk add --no-cache aria2
+RUN aria2c -x 5 --dir / --out wheel.whl 'https://github.com/AbdBarho/stable-diffusion-webui-docker/releases/download/4.1.0/xformers-0.0.16.dev421-cp310-cp310-manylinux2014_x86_64.whl'
 
-FROM python:3.10-slim
+FROM python:3.10.9-slim
 
 SHELL ["/bin/bash", "-ceuxo", "pipefail"]
 
-ENV DEBIAN_FRONTEND=noninteractive PIP_PREFER_BINARY=1 PIP_NO_CACHE_DIR=1
+ENV DEBIAN_FRONTEND=noninteractive PIP_PREFER_BINARY=1
 
-RUN pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+RUN PIP_NO_CACHE_DIR=1 pip install torch==1.13.1+cu117 torchvision --extra-index-url https://download.pytorch.org/whl/cu117
 
 RUN apt-get update && apt install fonts-dejavu-core rsync git jq moreutils -y && apt-get clean
 
 
-RUN <<EOF
+RUN --mount=type=cache,target=/root/.cache/pip <<EOF
 git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
 cd stable-diffusion-webui
-git reset --hard 98947d173e3f1667eba29c904f681047dea9de90
+git reset --hard d7aec59c4eb02f723b3d55c6f927a42e97acd679
 pip install -r requirements_versions.txt
 EOF
 
-
-COPY --from=xformers /wheel.whl xformers-0.0.15-cp310-cp310-linux_x86_64.whl
-RUN pip install xformers-0.0.15-cp310-cp310-linux_x86_64.whl && rm xformers-0.0.15-cp310-cp310-linux_x86_64.whl
-
+RUN --mount=type=cache,target=/root/.cache/pip  \
+  --mount=type=bind,from=xformers,source=/wheel.whl,target=/xformers-0.0.15-cp310-cp310-linux_x86_64.whl \
+  pip install triton /xformers-0.0.15-cp310-cp310-linux_x86_64.whl
 
 ENV ROOT=/stable-diffusion-webui
 
 
 COPY --from=download /git/ ${ROOT}
 RUN mkdir ${ROOT}/interrogate && cp ${ROOT}/repositories/clip-interrogator/data/* ${ROOT}/interrogate
-RUN pip install -r ${ROOT}/repositories/CodeFormer/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip install -r ${ROOT}/repositories/CodeFormer/requirements.txt
 
-
-ARG DEEPDANBOORU="0"
-RUN [[ "${DEEPDANBOORU:-0}" == "0" ]] && : || pip install tensorflow-cpu==2.10 tensorflow-io==0.27.0 git+https://github.com/KichangKim/DeepDanbooru.git@edf73df4cdaeea2cf00e9ac08bd8a9026b7a7b26#egg=deepdanbooru
-
-RUN pip install opencv-python-headless \
+RUN --mount=type=cache,target=/root/.cache/pip \
+  pip install pyngrok \
   git+https://github.com/TencentARC/GFPGAN.git@8d2447a2d918f8eba5a4a01463fd48e45126a379 \
   git+https://github.com/openai/CLIP.git@d50d76daa670286dd6cacf3bcd80b5e4823fc8e1 \
-  git+https://github.com/mlfoundations/open_clip.git@bb6e834e9c70d9c27d0dc3ecedeebeaeb1ffad6b \
-  pyngrok
+  git+https://github.com/mlfoundations/open_clip.git@bb6e834e9c70d9c27d0dc3ecedeebeaeb1ffad6b
 
 # Note: don't update the sha of previous versions because the install will take forever
 # instead, update the repo state in a later step
 
-ARG SHA=685f9631b56ff8bd43bce24ff5ce0f9a0e9af490
-RUN <<EOF
+ARG SHA=3993aa43e95bb60b9df977946af988f119525a71
+RUN --mount=type=cache,target=/root/.cache/pip <<EOF
 cd stable-diffusion-webui
 git fetch
 git reset --hard ${SHA}
 pip install -r requirements_versions.txt
 EOF
 
-RUN pip install opencv-python-headless transformers==4.24.0
+RUN --mount=type=cache,target=/root/.cache/pip  pip install -U opencv-python-headless
 
 COPY . /docker
 
 RUN <<EOF
 python3 /docker/info.py ${ROOT}/modules/ui.py
-mv  ${ROOT}/style.css ${ROOT}/user.css
-sed -i 's/os.rename(tmpdir, target_dir)/shutil.move(tmpdir,target_dir)/' ${ROOT}/modules/ui_extensions.py
+mv ${ROOT}/style.css ${ROOT}/user.css
+# one of the ugliest hacks I ever wrote
+sed -i 's/in_app_dir = .*/in_app_dir = True/g' /usr/local/lib/python3.10/site-packages/gradio/routes.py
 EOF
 
 WORKDIR ${ROOT}
 ENV CLI_ARGS=""
 EXPOSE 7860
 ENTRYPOINT ["/docker/entrypoint.sh"]
-CMD python3 -u webui.py --listen --port 7860 ${CLI_ARGS}
+CMD python -u webui.py --listen --port 7860 ${CLI_ARGS}
