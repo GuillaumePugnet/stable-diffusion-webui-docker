@@ -1,0 +1,25 @@
+version: '3.3'
+
+services:
+  download:
+    image: 192.168.1.16:5000/sd-download:latest
+    volumes:
+      - /d/projects/AI/sd/v1/data:/data
+
+  auto:
+    ports:
+      - "7860:7860"
+    volumes:
+      - /d/projects/AI/sd/v1/data:/data
+      - /d/projects/AI/sd/v1/output:/output
+    image: 192.168.1.16:5000/sd-auto:latest    
+    environment:
+      - CLI_ARGS=--allow-code --medvram --xformers --enable-insecure-extension-access --api
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
