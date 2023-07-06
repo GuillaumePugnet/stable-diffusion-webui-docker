@@ -15,22 +15,3 @@ services:
     image: 192.168.1.16:5000/sd-auto:latest
     environment:
       - CLI_ARGS=--allow-code --medvram --xformers --enable-insecure-extension-access --api
-
-
-
-      
-# x-base_service: &base_service
-#     ports:
-#       - "7860:7860"
-#     volumes:
-#       - &v1 ./mnt/user/appdata/sd-auto/data:/data
-#       - &v2 ./mnt/user/data/ai/sd-outputs:/output
-#     deploy:
-#       resources:
-#         reservations:
-#           devices:
-#               - driver: nvidia
-#                 device_ids: ['0']
-#                 capabilities: [gpu]
-
-
