@@ -2,7 +2,7 @@ version: '3.3'
 
 services:
   download:
-    image: 192.168.1.16:5000/sd-download:latest
+    image: 192.168.1.16:5000/sd-download:2023.07.06
     volumes:
       - /d/projects/AI/sd/v1/data:/data
 
@@ -12,7 +12,7 @@ services:
     volumes:
       - /d/projects/AI/sd/v1/data:/data
       - /d/projects/AI/sd/v1/output:/output
-    image: 192.168.1.16:5000/sd-auto:latest    
+    image: 192.168.1.16:5000/sd-auto:2023.07.06 
     environment:
       - CLI_ARGS=--allow-code --medvram --xformers --enable-insecure-extension-access --api
       - NVIDIA_VISIBLE_DEVICES=all
