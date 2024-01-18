@@ -6,16 +6,20 @@ services:
     volumes:
       - /d/projects/AI/sd/v1/data:/data
 
-  auto:
+  #auto:
+  comfy:
+    image: sd-comfy:2023.12.07 
+    environment:
+      - CLI_ARGS=
     ports:
       - "7860:7860"
     volumes:
       - /d/projects/AI/sd/v1/data:/data
       - /d/projects/AI/sd/v1/output:/output
-    image: 192.168.1.16:5000/sd-auto:2023.10.18
-    environment:
-      - CLI_ARGS=--allow-code --medvram --xformers --enable-insecure-extension-access --api  # --disable-safe-unpickle --medvram   --opt-sdp-no-mem-attention  --no-half-vae
-      - NVIDIA_VISIBLE_DEVICES=all
+    # image: 192.168.1.16:5000/sd-auto:2023.10.18
+    # environment:
+    #   - CLI_ARGS=--allow-code --medvram --xformers --enable-insecure-extension-access --api  # --disable-safe-unpickle --medvram   --opt-sdp-no-mem-attention  --no-half-vae
+    #   - NVIDIA_VISIBLE_DEVICES=all
     deploy:
       resources:
         reservations:
@@ -23,3 +27,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+
+
